@@ -240,23 +240,53 @@ function initCarousel() {
     const slide = document.createElement('div');
     slide.className = 'carousel__slide';
     slide.style.backgroundImage = `url('${url}')`;
-    slide.setAttribute('role', 'img');
-    slide.setAttribute('aria-label', `Imagen ${i + 1} de ${total}`);
+    slide.setAttribute('role', 'button');
+    slide.setAttribute('tabindex', '0');
+    slide.setAttribute('aria-label', `Imagen ${i + 1} de ${total}. Hacer clic para ver.`);
+    
+    // Clicking side slides should focus them directly
+    slide.addEventListener('click', () => {
+      if (current !== i) {
+        goTo(i);
+        resetAutoplay();
+      }
+    });
+
     track.appendChild(slide);
 
     const dot = document.createElement('button');
     dot.className = `carousel__dot${i === 0 ? ' active' : ''}`;
     dot.setAttribute('role', 'tab');
     dot.setAttribute('aria-label', `Ir a imagen ${i + 1}`);
-    dot.addEventListener('click', () => goTo(i));
+    dot.addEventListener('click', () => {
+      goTo(i);
+      resetAutoplay();
+    });
     dotsContainer?.appendChild(dot);
   });
 
+  const slides = track.querySelectorAll('.carousel__slide');
   const dots = dotsContainer?.querySelectorAll('.carousel__dot');
 
   function goTo(index) {
     current = ((index % total) + total) % total;
-    track.style.transform = `translateX(-${current * 100}%)`;
+    
+    // Toggle active class on corresponding slide
+    slides.forEach((slide, idx) => {
+      slide.classList.toggle('active', idx === current);
+    });
+
+    // Calculate translation offset to center the active slide
+    const viewport = carousel.querySelector('.carousel__viewport');
+    if (viewport) {
+      const viewportWidth = viewport.clientWidth;
+      const slideWidth = slides[current]?.clientWidth || 0;
+      const gap = 20; // Matches CSS flex grid gap between slides
+      
+      const offset = (viewportWidth - slideWidth) / 2 - current * (slideWidth + gap);
+      track.style.transform = `translateX(${offset}px)`;
+    }
+
     dots?.forEach((d, i) => d.classList.toggle('active', i === current));
   }
 
@@ -296,6 +326,16 @@ function initCarousel() {
 
   carousel?.addEventListener('mouseenter', () => clearInterval(autoplayTimer));
   carousel?.addEventListener('mouseleave', startAutoplay);
+
+  // Re-align slides on window resize
+  window.addEventListener('resize', () => {
+    goTo(current);
+  });
+
+  // Initial alignments (wait one frame for layout computing)
+  requestAnimationFrame(() => {
+    goTo(0);
+  });
 
   startAutoplay();
 }
